@@ -11,11 +11,13 @@ const reverseStr = (str) => {
 };
 
 const getRandomInt = (amount) => {
+  let regEx = /^\d*\.?\d*$/;
   let amountLength = amount.length;
   let decimalPoint = amount.indexOf(".");
   let afterDecimal = amountLength - (decimalPoint + 1);
   let maximum = "";
-  if (amountLength > 15) {
+
+  if (amountLength > 15 || !amount.match(regEx)) {
     return "Please enter a valid amount";
   }
 

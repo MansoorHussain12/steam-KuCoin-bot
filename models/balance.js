@@ -24,7 +24,7 @@ const balanceSchema = new mongoose.Schema({
 const Balance = mongoose.model("Balance", balanceSchema);
 
 const saveBalance = async (details) => {
-  const currentBalance = await Balance.findById(details._id);
+  let currentBalance = await Balance.findById(details._id);
   if (!currentBalance) {
     const newBalance = await new Balance({
       _id: details._id,
@@ -32,12 +32,11 @@ const saveBalance = async (details) => {
     });
     await newBalance.save();
   } else {
-    let currency = currentBalance.cryptos.find(
-      (c) => c.name === details.crypto.name
-    );
-    if (currency) {
-      currency.balance += details.crypto.balance;
-      currentBalance.balance = currency.balance;
+    if (currentBalance.cryptos.find((c) => c.name === details.crypto.name)) {
+      currentBalance.cryptos.find(
+        (c) => c.name === details.crypto.name
+      ).balance += details.crypto.balance;
+
       await currentBalance.save();
     } else {
       const newCrypto = {

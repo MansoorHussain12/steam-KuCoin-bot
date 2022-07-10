@@ -12,17 +12,17 @@ const currencySchema = mongoose.Schema(
     balance: [
       new mongoose.Schema(
         {
-          amount: Number,
-          date: {
-            type: Date,
-            default: Date.now(),
+          amount: {
+            type: Number,
+            min: 0,
+            max: 1000000,
           },
         },
         { _id: false }
       ),
     ],
   },
-  { _id: false }
+  { _id: false, timestamps: true }
 );
 
 const recordSchema = new mongoose.Schema({
@@ -33,7 +33,7 @@ const recordSchema = new mongoose.Schema({
 const TransactionRecord = mongoose.model("TxRecord", recordSchema);
 
 const saveTxRecord = async (details) => {
-  let toSave = {
+  let record = {
     _id: details._id,
     currencies: {
       name: details.crypto.name,
@@ -43,25 +43,31 @@ const saveTxRecord = async (details) => {
     },
   };
   try {
-    const currentRecord = await TransactionRecord.findById(toSave._id);
+    const currentRecord = await TransactionRecord.findById(record._id);
     if (!currentRecord) {
       const newRecord = new TransactionRecord({
-        _id: toSave._id,
-        currencies: toSave.currencies,
+        _id: record._id,
+        currencies: record.currencies,
       });
-      await newRecord.save();
+      await newRecord.save({
+        timestamps: { createdAt: true, updatedAt: false },
+      });
     } else {
       if (
-        currentRecord.currencies.find((c) => toSave.currencies.name === c.name)
+        currentRecord.currencies.find((c) => record.currencies.name === c.name)
       ) {
         currentRecord.currencies
-          .find((c) => toSave.currencies.name === c.name)
-          .balance.push(toSave.currencies.balance);
+          .find((c) => record.currencies.name === c.name)
+          .balance.push(record.currencies.balance);
 
-        await currentRecord.save();
+        await currentRecord.save({
+          timestamps: { createdAt: true, updatedAt: false },
+        });
       } else {
-        currentRecord.currencies.push(toSave.currencies);
-        await currentRecord.save();
+        currentRecord.currencies.push(record.currencies);
+        await currentRecord.save({
+          timestamps: { createdAt: true, updatedAt: false },
+        });
       }
     }
   } catch (error) {
@@ -69,21 +75,36 @@ const saveTxRecord = async (details) => {
   }
 };
 
-const checkTxRecord = async (details) => {
-  try {
-    const currentRecord = await TransactionRecord.findById(currencyDetails);
-    if (!currentRecord) return false;
-    else if (
-      currentRecord.currencies.find((currency) => {
-        details.crypto.balance === currency.balance;
-      })
+const checkAmount = async (details) => {
+  let number = 0;
+  let result = getAmount(details.crypto.balance);
+  if (typeof result === "string") {
+    return result;
+  }
+
+  let record = await TransactionRecord.findById(details._id);
+  if (!record) return result;
+
+  if (!record.currencies.find((r) => r.name === details.crypto.name))
+    return result;
+
+  if (
+    !record.currencies
+      .find((r) => r.name === details.crypto.name)
+      .balance.find((b) => b === details.crypto.balance)
+  )
+    return result;
+  else {
+    while (
+      record.currencies
+        .find((r) => r.name === details.crypto.name)
+        .balance.find((b) => b === details.crypto.balance)
     ) {
-      return true;
+      result = getAmount(details.crypto.balance);
     }
-  } catch (error) {
-    console.log(error);
+    return result;
   }
 };
 
 exports.saveTxRecord = saveTxRecord;
-exports.checkTxRecord = checkTxRecord;
+exports.checkAmount = checkAmount;

@@ -4,7 +4,7 @@ var client = new SteamUser();
 
 const { validateCurrency, getDepositAddress } = require("./kucoin-api");
 const { saveBalance, checkBalance } = require("./models/balance");
-const { saveTxRecord, checkTxRecord } = require("./models/transactionRecord");
+const { saveTxRecord, checkAmount } = require("./models/transactionRecord");
 const { toSteam64 } = require("./helpers/steamId");
 const { getAmount } = require("./helpers/randomAmount");
 
@@ -21,10 +21,10 @@ const depositCommand = /!deposit\s([1-9]+\.?[0-9]*|[0-9]+)\s[a-z]+/gi;
 const commandList = /!commands/gi;
 const balanceCommand = /!balance/g;
 
+const depositCount = 0;
+
 const commands =
   "To deposit crypto  =>  !deposit [Amount] [Currency]\n\n To check your balance  =>  !balance\n";
-let crypto = { name: "", balance: 0 };
-let depositCount = 0;
 
 client.logOn({
   accountName: "lashkari07",
@@ -67,13 +67,13 @@ client.on("friendMessage", async function (steamID, message) {
   console.log("Friend message from " + steamID + ": " + message);
   const _id = parseInt(toSteam64(steamID));
 
-  //If friends asks to show list of commands
+  //If friends asks to show list of commands by !commands
 
   if (message.match(commandList)) {
     client.chat.sendFriendMessage(steamID, commands);
   }
 
-  // If friend gives balance command
+  // If friend asks his balance by !balance command
   else if (message.match(balanceCommand)) {
     try {
       let result = [];
@@ -90,11 +90,11 @@ client.on("friendMessage", async function (steamID, message) {
     }
   }
 
-  // If friend gives the deposit command
+  // If friend asks to deposit crypto !deposit command
   else if (message.match(depositCommand)) {
     const words = message.split(" ");
 
-    const details = {
+    let details = {
       _id: _id,
       crypto: {
         name: words[2],
@@ -106,15 +106,16 @@ client.on("friendMessage", async function (steamID, message) {
       const currencyDetails = await validateCurrency(details.crypto.name);
 
       if (currencyDetails.data) {
-        let checkedAmount = getAmount(details.crypto.balance);
+        let amount = await checkAmount(details);
 
-        if (typeof checkedAmount === "string") {
-          client.chat.sendFriendMessage(steamID, checkAmount);
+        if (typeof amount === "string") {
+          client.chat.sendFriendMessage(steamID, amount);
           return;
         }
 
+        details.crypto.balance = amount;
+
         const depositAddress = await getDepositAddress(details.crypto.name);
-        details.crypto.balance = checkedAmount;
 
         setTimeout(() => {
           client.chat.sendFriendMessage(
