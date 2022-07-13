@@ -1,17 +1,8 @@
 const mongoose = require("mongoose");
-
 const API = require("kucoin-node-sdk");
 API.init(require("./config/kucoin-config"));
-const { TransactionRecord } = require("./models/transactionRecord");
 
-mongoose
-  .connect("mongodb://localhost/steambot")
-  .then(() => {
-    console.log("Connected to MongoDB...");
-  })
-  .catch((error) => {
-    console.error(error);
-  });
+const { TransactionRecord } = require("./transactionRecord");
 
 const depositSchema = new mongoose.Schema({
   _id: Number,
@@ -127,7 +118,30 @@ const checkDepositDb = async (allAmounts) => {
   return check;
 };
 
-const run = setInterval(async () => {
-  let check = await depositList();
-  console.log(check);
-}, 120000);
+const informUser = async (client) => {
+  const deposits = await Deposit.find();
+  if (!deposits) return false;
+
+  deposits.forEach((deposit) => {
+    if (deposit.status === "PROCESSING") {
+      client.chat.sendFriendMessage(
+        deposit._id,
+        "Your request to deposit amount is being processed."
+      );
+    }
+    if (deposit.status === "SUCCESS") {
+      client.chat.sendFriendMessage(
+        deposit._id,
+        "Your deposit has successfully reached in our account."
+      );
+    }
+    if (deposit.status === "FAILURE") {
+      client.chat.sendFriendMessage(
+        deposit._id,
+        "Your deposit has failed to reach our account."
+      );
+    }
+  });
+};
+
+exports.informUser = informUser;

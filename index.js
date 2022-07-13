@@ -4,7 +4,12 @@ var client = new SteamUser();
 
 const { validateCurrency, getDepositAddress } = require("./kucoin-api");
 const { saveBalance, checkBalance } = require("./models/balance");
-const { saveTxRecord, checkAmount } = require("./models/transactionRecord");
+const { informUser } = require("./models/deposit");
+const {
+  saveTxRecord,
+  checkAmount,
+  transactionLimit,
+} = require("./models/transactionRecord");
 const { toSteam64 } = require("./helpers/steamId");
 const { getAmount } = require("./helpers/randomAmount");
 
@@ -106,12 +111,30 @@ client.on("friendMessage", async function (steamID, message) {
       const currencyDetails = await validateCurrency(details.crypto.name);
 
       if (currencyDetails.data) {
+        let limit = await transactionLimit(details);
+        if (limit === 0) {
+          client.chat.sendFriendMessage(
+            steamID,
+            `You have reached the limit of 3 transactions on "${details.crypto.name}". Future transaction will be enabled after the confirmation of your previous transactions.`
+          );
+          return;
+        }
+
         let amount = await checkAmount(details);
 
         if (typeof amount === "string") {
           client.chat.sendFriendMessage(steamID, amount);
           return;
         }
+
+        client.chat.sendFriendMessage(
+          steamID,
+          `You have ${
+            limit - 1
+          } number of transactions available after this for "${
+            details.crypto.name
+          }". Fetching you details please wait...`
+        );
 
         details.crypto.balance = amount;
 
@@ -120,7 +143,8 @@ client.on("friendMessage", async function (steamID, message) {
         setTimeout(() => {
           client.chat.sendFriendMessage(
             steamID,
-            "Currency : " +
+            "Details : ** \n" +
+              "Currency : " +
               details.crypto.name +
               "\n" +
               "Amount: " +
@@ -130,9 +154,10 @@ client.on("friendMessage", async function (steamID, message) {
               depositAddress.data[0].address +
               "\n" +
               "Memo : " +
-              depositAddress.data[0].memo
+              depositAddress.data[0].memo +
+              "\n **"
           );
-        }, 1000);
+        }, 3000);
 
         await saveBalance(details);
         await saveTxRecord(details);
@@ -142,14 +167,21 @@ client.on("friendMessage", async function (steamID, message) {
             steamID,
             `Please deposit the exact amount ${details.crypto.balance} , or you will have to confirm the transaction manually with us.`
           );
-        }, 2000);
+        }, 3100);
 
         setTimeout(() => {
           client.chat.sendFriendMessage(
             steamID,
             "To check your balance type '!balance'."
           );
-        }, 3000);
+        }, 5000);
+
+        setTimeout(() => {
+          client.chat.sendFriendMessage(
+            steamID,
+            `You transaction is being processed. You will be informed here once your transaction is confirmed on blockchain.`
+          );
+        }, 10000);
       } else {
         client.chat.sendFriendMessage(
           steamID,

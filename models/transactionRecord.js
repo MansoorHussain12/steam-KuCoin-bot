@@ -18,11 +18,11 @@ const currencySchema = mongoose.Schema(
             max: 1000000,
           },
         },
-        { _id: false }
+        { _id: false, timestamps: true }
       ),
     ],
   },
-  { _id: false, timestamps: true }
+  { _id: false }
 );
 
 const recordSchema = new mongoose.Schema({
@@ -106,5 +106,28 @@ const checkAmount = async (details) => {
   }
 };
 
+const checkTransactionLimit = async (details) => {
+  const record = await TransactionRecord.findById(details._id);
+  if (!record) return 3;
+  if (!record.currencies.find((r) => r.name === details.crypto.name)) return 3;
+  if (
+    record.currencies.find((r) => r.name === details.crypto.name).balance
+      .length === 1
+  )
+    return 2;
+  if (
+    record.currencies.find((r) => r.name === details.crypto.name).balance
+      .length === 2
+  )
+    return 1;
+  if (
+    record.currencies.find((r) => r.name === details.crypto.name).balance
+      .length === 3
+  )
+    return 0;
+};
+
 exports.saveTxRecord = saveTxRecord;
 exports.checkAmount = checkAmount;
+exports.transactionLimit = checkTransactionLimit;
+exports.TransactionRecord = TransactionRecord;
