@@ -73,10 +73,10 @@ try {
     if (result.status === true) {
       client.chat.sendFriendMessage(
         result._id,
-        "***** Your transaction has been confirmed on blockchain. *****"
+        `***** \n Your transaction has been confirmed on blockchain. \n Details \n Currency : ${result.crypto.name} \n Amount : ${result.crypto.balance} \n txID: ${result.crypto.txId} \n *****`
       );
     }
-  }, 3300);
+  }, 10000);
 } catch (error) {
   console.log(error);
 }
@@ -190,7 +190,7 @@ client.on("friendMessage", async function (steamID, message) {
 
         setTimeout(() => {
           client.chat.sendFriendMessage(steamID, "TxID : " + txId + "\n ***");
-        }, 10000);
+        }, 3200);
 
         setTimeout(() => {
           client.chat.sendFriendMessage(

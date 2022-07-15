@@ -11,6 +11,7 @@ let result = {
   crypto: {
     name: "",
     balance: 0,
+    txId: "",
   },
 };
 
@@ -102,6 +103,7 @@ const depositList = async () => {
             result._id = save._id;
             result.status = true;
             (result.crypto.balance = save.amount),
+              (result.crypto.txId = save.txId),
               (result.crypto.name = save.currency);
           }
           await saveBalance(result);
