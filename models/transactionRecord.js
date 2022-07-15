@@ -18,7 +18,7 @@ const currencySchema = mongoose.Schema(
             max: 1000000,
           },
         },
-        { _id: false, timestamps: true }
+        { timestamps: true }
       ),
     ],
   },
@@ -26,7 +26,7 @@ const currencySchema = mongoose.Schema(
 );
 
 const recordSchema = new mongoose.Schema({
-  _id: Number,
+  _id: String,
   currencies: [currencySchema],
 });
 
@@ -76,7 +76,6 @@ const saveTxRecord = async (details) => {
 };
 
 const checkAmount = async (details) => {
-  let number = 0;
   let result = getAmount(details.crypto.balance);
   if (typeof result === "string") {
     return result;
@@ -127,6 +126,28 @@ const checkTransactionLimit = async (details) => {
     return 0;
 };
 
+const getTxId = async (_id, name, amount) => {
+  const record = await TransactionRecord.findById(_id);
+
+  let i = 0;
+  let j = 0;
+
+  console.log(record);
+
+  while (i < record.currencies.length) {
+    while (j < record.currencies[i].balance.length) {
+      if (record.currencies[i].name == name) {
+        if (record.currencies[i].balance[j].amount == amount) {
+          return record.currencies[i].balance[j]._id.toString();
+        }
+      }
+      j++;
+    }
+    i++;
+  }
+};
+
+exports.getTxId = getTxId;
 exports.saveTxRecord = saveTxRecord;
 exports.checkAmount = checkAmount;
 exports.transactionLimit = checkTransactionLimit;

@@ -1,16 +1,28 @@
 const mongoose = require("mongoose");
 const API = require("kucoin-node-sdk");
-API.init(require("./config/kucoin-config"));
+API.init(require("../config/kucoin-config"));
 
 const { TransactionRecord } = require("./transactionRecord");
+const { saveBalance } = require("./balance");
+
+let result = {
+  _id: "",
+  status: false,
+  crypto: {
+    name: "",
+    balance: 0,
+  },
+};
 
 const depositSchema = new mongoose.Schema({
-  _id: Number,
+  _id: String,
+  currency: String,
   amount: Number,
   address: String,
   memo: String,
   walletTxId: String,
   status: String,
+  txId: String,
   isInner: Boolean,
   remark: String,
   createdAt: Number,
@@ -32,7 +44,7 @@ const depositList = async () => {
 
   let allAmounts = [];
   let details = {
-    _id: 0,
+    _id: "",
     crypto: {
       name: "",
       balance: [],
@@ -41,6 +53,7 @@ const depositList = async () => {
 
   let i = 0;
   let j = 0;
+  let check = false;
 
   while (i != allTransactions.length) {
     while (j != allTransactions[i].currencies.length) {
@@ -57,9 +70,9 @@ const depositList = async () => {
     i++;
   }
 
-  let check = await checkDepositDb(allAmounts);
+  let existsInDb = await checkDepositDb(allAmounts);
 
-  if (check === true) return false;
+  if (existsInDb === true) return false;
 
   i = 0;
   j = 0;
@@ -70,10 +83,12 @@ const depositList = async () => {
         let deposit = new Deposit({
           _id: allAmounts[i]._id,
           amount: allAmounts[i].crypto.balance[j].amount,
+          currency: list[i].currency,
           address: list[i].address,
           memo: list[i].memo,
           walletTxId: list[i].walletTxId,
           status: list[i].status,
+          txId: allAmounts[i].crypto.balance[j]._id,
           isInner: list[i].isInner,
           remark: list[i].remark,
           createdAt: list[i].createdAt,
@@ -81,7 +96,15 @@ const depositList = async () => {
         });
 
         try {
-          await deposit.save();
+          let save = await deposit.save();
+
+          if (save) {
+            result._id = save._id;
+            result.status = true;
+            (result.crypto.balance = save.amount),
+              (result.crypto.name = save.currency);
+          }
+          await saveBalance(result);
         } catch (error) {
           console.log(error);
         }
@@ -90,6 +113,7 @@ const depositList = async () => {
     }
     i++;
   }
+  return result;
 };
 
 const checkDepositDb = async (allAmounts) => {
@@ -97,7 +121,7 @@ const checkDepositDb = async (allAmounts) => {
   let check = false;
   const deposits = await Deposit.find();
 
-  if (deposits.length === 0) check = false;
+  if (deposits.length === 0) return (check = false);
 
   deposits.forEach((d) => {
     depositAmounts.push(d.amount);
@@ -115,33 +139,9 @@ const checkDepositDb = async (allAmounts) => {
     }
     i++;
   }
+
   return check;
 };
 
-const informUser = async (client) => {
-  const deposits = await Deposit.find();
-  if (!deposits) return false;
-
-  deposits.forEach((deposit) => {
-    if (deposit.status === "PROCESSING") {
-      client.chat.sendFriendMessage(
-        deposit._id,
-        "Your request to deposit amount is being processed."
-      );
-    }
-    if (deposit.status === "SUCCESS") {
-      client.chat.sendFriendMessage(
-        deposit._id,
-        "Your deposit has successfully reached in our account."
-      );
-    }
-    if (deposit.status === "FAILURE") {
-      client.chat.sendFriendMessage(
-        deposit._id,
-        "Your deposit has failed to reach our account."
-      );
-    }
-  });
-};
-
-exports.informUser = informUser;
+exports.depositList = depositList;
+exports.Deposit = Deposit;

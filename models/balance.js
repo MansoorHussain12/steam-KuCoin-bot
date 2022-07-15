@@ -17,7 +17,7 @@ const cryptoSchema = new mongoose.Schema(
 );
 
 const balanceSchema = new mongoose.Schema({
-  _id: Number,
+  _id: String,
   cryptos: [cryptoSchema],
 });
 
@@ -30,6 +30,7 @@ const saveBalance = async (details) => {
       _id: details._id,
       cryptos: details.crypto,
     });
+
     await newBalance.save();
   } else {
     if (currentBalance.cryptos.find((c) => c.name === details.crypto.name)) {
