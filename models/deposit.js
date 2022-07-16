@@ -12,6 +12,7 @@ let result = {
     name: "",
     balance: 0,
     txId: "",
+    chain: "",
   },
 };
 
@@ -24,6 +25,7 @@ const depositSchema = new mongoose.Schema({
   walletTxId: String,
   status: String,
   txId: String,
+  chain: String,
   isInner: Boolean,
   remark: String,
   createdAt: Number,
@@ -56,8 +58,8 @@ const depositList = async () => {
   let j = 0;
   let check = false;
 
-  while (i != allTransactions.length) {
-    while (j != allTransactions[i].currencies.length) {
+  while (i < allTransactions.length) {
+    while (j < allTransactions[i].currencies.length) {
       details = {
         _id: allTransactions[i]._id,
         crypto: {
@@ -90,6 +92,7 @@ const depositList = async () => {
           walletTxId: list[i].walletTxId,
           status: list[i].status,
           txId: allAmounts[i].crypto.balance[j]._id,
+          chain: allAmounts[i].crypto.balance[j].chain,
           isInner: list[i].isInner,
           remark: list[i].remark,
           createdAt: list[i].createdAt,
@@ -105,6 +108,7 @@ const depositList = async () => {
             (result.crypto.balance = save.amount),
               (result.crypto.txId = save.txId),
               (result.crypto.name = save.currency);
+            result.crypto.chain = save.chain;
           }
           await saveBalance(result);
         } catch (error) {

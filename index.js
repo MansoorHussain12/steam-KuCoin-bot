@@ -111,13 +111,15 @@ client.on("friendMessage", async function (steamID, message) {
   // If friend asks to deposit crypto !deposit command
   else if (message.match(depositCommand)) {
     const words = message.split(" ");
+    let currency = words[2];
+    let chain = words[3];
 
     let details = {
       _id: toSteam64(steamID),
       crypto: {
-        name: words[2],
+        name: currency.toUpperCase(),
         balance: words[1],
-        chain: words[3],
+        chain: "",
       },
     };
 
@@ -141,6 +143,17 @@ client.on("friendMessage", async function (steamID, message) {
           return;
         }
 
+        if (words.length === 4) details.crypto.chain = chain.toUpperCase();
+        let depositAddress = await getDepositAddress(details);
+
+        if (depositAddress == false) {
+          client.chat.sendFriendMessage(
+            steamID,
+            "You have entered a wrong chain for deposit address. Please try again."
+          );
+          return;
+        }
+
         client.chat.sendFriendMessage(
           steamID,
           `You have ${
@@ -151,19 +164,9 @@ client.on("friendMessage", async function (steamID, message) {
         );
 
         details.crypto.balance = amount;
-        let depositAddress = "";
-
-        if (words.length === 3)
-          depositAddress = await getDepositAddress(details.crypto.name);
-
-        if (words.length === 4)
-          depositAddress = await getDepositAddress(
-            details.crypto.name,
-            details.crypto.chain
-          );
 
         await saveTxRecord(details);
-        console.log(details);
+
         let txId = await getTxId(
           details._id,
           details.crypto.name,
@@ -181,15 +184,18 @@ client.on("friendMessage", async function (steamID, message) {
               details.crypto.balance +
               "\n" +
               "Address : " +
-              depositAddress.data[0].address +
+              depositAddress.address +
               "\n" +
               "Memo : " +
-              depositAddress.data[0].memo
+              depositAddress.memo
           );
         }, 3000);
 
         setTimeout(() => {
-          client.chat.sendFriendMessage(steamID, "TxID : " + txId + "\n ***");
+          client.chat.sendFriendMessage(
+            steamID,
+            "Chain : " + depositAddress.chain + "\nTxID : " + txId + "\n ***"
+          );
         }, 3200);
 
         setTimeout(() => {

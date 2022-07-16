@@ -17,6 +17,7 @@ const currencySchema = mongoose.Schema(
             min: 0,
             max: 1000000,
           },
+          chain: String,
         },
         { timestamps: true }
       ),
@@ -39,9 +40,11 @@ const saveTxRecord = async (details) => {
       name: details.crypto.name,
       balance: {
         amount: details.crypto.balance,
+        chain: details.crypto.chain,
       },
     },
   };
+
   try {
     const currentRecord = await TransactionRecord.findById(record._id);
     if (!currentRecord) {
@@ -49,7 +52,7 @@ const saveTxRecord = async (details) => {
         _id: record._id,
         currencies: record.currencies,
       });
-      await newRecord.save({
+      let n = await newRecord.save({
         timestamps: { createdAt: true, updatedAt: false },
       });
     } else {
@@ -131,8 +134,6 @@ const getTxId = async (_id, name, amount) => {
 
   let i = 0;
   let j = 0;
-
-  console.log(record);
 
   while (i < record.currencies.length) {
     while (j < record.currencies[i].balance.length) {
