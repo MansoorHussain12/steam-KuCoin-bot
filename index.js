@@ -69,14 +69,16 @@ client.on("friendRelationship", function (steamID, relationship) {
 try {
   setInterval(async () => {
     let result = await depositList();
-    // console.log(result.status);
-    if (result.status === true) {
+    if (!result) console.log("recived undefined");
+    else {
+      let index = result.details.length - 1;
+
       client.chat.sendFriendMessage(
         result._id,
-        `***** \n Your transaction has been confirmed on blockchain. \n Details \n Currency : ${result.crypto.name} \n Amount : ${result.crypto.balance} \n txID: ${result.crypto.txId} \n *****`
+        `***** \n Your transaction has been confirmed on blockchain. \n Details are \n Currency : ${result.details[index].currency} \n Amount : ${result.details[index].amount} \n inVoiceID : ${result.details[index].inVoiceId} \n WalletTxID : ${result.details[index].walletTxId} \n *****`
       );
     }
-  }, 10000);
+  }, 3000);
 } catch (error) {
   console.log(error);
 }

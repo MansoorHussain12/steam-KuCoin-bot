@@ -11,25 +11,34 @@ let result = {
   crypto: {
     name: "",
     balance: 0,
-    txId: "",
+    inVoiceId: mongoose.Types.ObjectId,
     chain: "",
+    walletTxId: "",
   },
 };
 
 const depositSchema = new mongoose.Schema({
   _id: String,
-  currency: String,
-  amount: Number,
-  address: String,
-  memo: String,
-  walletTxId: String,
-  status: String,
-  txId: String,
-  chain: String,
-  isInner: Boolean,
-  remark: String,
-  createdAt: Number,
-  updatedAt: Number,
+  details: [
+    new mongoose.Schema(
+      {
+        currency: String,
+        amount: Number,
+        address: String,
+        memo: String,
+        walletTxId: String,
+        status: String,
+        inVoiceId: String,
+        chain: String,
+        isInner: Boolean,
+        remark: String,
+        createdAt: Number,
+        updatedAt: Number,
+        messageSent: Boolean,
+      },
+      { _id: false }
+    ),
+  ],
 });
 
 const Deposit = mongoose.model("Deposits", depositSchema);
@@ -56,6 +65,8 @@ const depositList = async () => {
 
   let i = 0;
   let j = 0;
+  let k = 0;
+
   let check = false;
 
   while (i < allTransactions.length) {
@@ -73,80 +84,120 @@ const depositList = async () => {
     i++;
   }
 
-  let existsInDb = await checkDepositDb(allAmounts);
+  // let existsInDb = await checkDepositDb(allAmounts);
 
-  if (existsInDb === true) return false;
+  // console.log(existsInDb);
+
+  // if (existsInDb === true) return false;
 
   i = 0;
   j = 0;
+  k = 0;
 
-  while (i < allAmounts.length) {
-    while (j < allAmounts[i].crypto.balance.length) {
-      if (allAmounts[i].crypto.balance[j].amount == list[i].amount) {
-        let deposit = new Deposit({
-          _id: allAmounts[i]._id,
-          amount: allAmounts[i].crypto.balance[j].amount,
-          currency: list[i].currency,
-          address: list[i].address,
-          memo: list[i].memo,
-          walletTxId: list[i].walletTxId,
-          status: list[i].status,
-          txId: allAmounts[i].crypto.balance[j]._id,
-          chain: allAmounts[i].crypto.balance[j].chain,
-          isInner: list[i].isInner,
-          remark: list[i].remark,
-          createdAt: list[i].createdAt,
-          updatedAt: list[i].updatedAt,
-        });
+  for (k = 0; k < list.length; k++) {
+    for (i = 0; i < allAmounts.length; i++) {
+      for (j = 0; j < allAmounts[i].crypto.balance.length; j++) {
+        if (list[k].amount == allAmounts[i].crypto.balance[j].amount) {
+          // console.log(list[k].amount);
 
-        try {
-          let save = await deposit.save();
-
-          if (save) {
-            result._id = save._id;
-            result.status = true;
-            (result.crypto.balance = save.amount),
-              (result.crypto.txId = save.txId),
-              (result.crypto.name = save.currency);
-            result.crypto.chain = save.chain;
+          let deposit = {
+            _id: allAmounts[i]._id,
+            details: {
+              amount: allAmounts[i].crypto.balance[j].amount,
+              currency: list[k].currency,
+              address: list[k].address,
+              memo: list[k].memo,
+              walletTxId: list[k].walletTxId,
+              status: list[k].status,
+              inVoiceId: allAmounts[i].crypto.balance[j]._id,
+              chain: allAmounts[i].crypto.balance[j].chain,
+              isInner: list[k].isInner,
+              remark: list[k].remark,
+              createdAt: list[k].createdAt,
+              updatedAt: list[k].updatedAt,
+              messageSent: false,
+            },
+          };
+          try {
+            let check = await checkDepositDb(deposit);
+            // console.log(check);
+            if (check != false) {
+              let index = check.details.length - 1;
+              check.details[index].messageSent = true;
+              await check.save();
+              return check;
+            } else continue;
+          } catch (error) {
+            console.log(error);
           }
-          await saveBalance(result);
-        } catch (error) {
-          console.log(error);
         }
       }
-      j++;
     }
-    i++;
   }
-  return result;
 };
 
-const checkDepositDb = async (allAmounts) => {
-  let depositAmounts = [];
-  let check = false;
+const checkDepositDb = async (currentDeposit) => {
   const deposits = await Deposit.find();
 
-  if (deposits.length === 0) return (check = false);
-
-  deposits.forEach((d) => {
-    depositAmounts.push(d.amount);
-  });
-
-  let i = 0;
-  let j = 0;
-
-  while (i < allAmounts.length) {
-    while (j < allAmounts[i].crypto.balance.length) {
-      if (allAmounts[i].crypto.balance[j].amount === depositAmounts[i]) {
-        check = true;
-      }
-      j++;
-    }
-    i++;
+  if (deposits.length === 0) {
+    let newDeposit = new Deposit({
+      _id: currentDeposit._id,
+      details: {
+        amount: currentDeposit.details.amount,
+        currency: currentDeposit.details.currency,
+        address: currentDeposit.details.address,
+        memo: currentDeposit.details.memo,
+        walletTxId: currentDeposit.details.walletTxId,
+        status: currentDeposit.details.status,
+        inVoiceId: currentDeposit.details._id,
+        chain: currentDeposit.details.chain,
+        isInner: currentDeposit.details.isInner,
+        remark: currentDeposit.details.remark,
+        createdAt: currentDeposit.details.createdAt,
+        updatedAt: currentDeposit.details.updatedAt,
+        messageSent: false,
+      },
+    });
+    console.log("No deposits found at all");
+    return newDeposit;
   }
 
-  return check;
+  let deposit = deposits.find((deposit) => (deposit._id = currentDeposit._id));
+
+  if (!deposit) {
+    let newDeposit = new Deposit({
+      _id: currentDeposit._id,
+      details: {
+        amount: currentDeposit.details.amount,
+        currency: currentDeposit.details.currency,
+        address: currentDeposit.details.address,
+        memo: currentDeposit.details.memo,
+        walletTxId: currentDeposit.details.walletTxId,
+        status: currentDeposit.details.status,
+        inVoiceId: currentDeposit.details._id,
+        chain: currentDeposit.details.chain,
+        isInner: currentDeposit.details.isInner,
+        remark: currentDeposit.details.remark,
+        createdAt: currentDeposit.details.createdAt,
+        updatedAt: currentDeposit.details.updatedAt,
+        messageSent: false,
+      },
+    });
+    console.log("Found deposit but not with the given Id");
+    return newDeposit;
+  }
+
+  for (let i = 0; i < deposit.details.length; i++) {
+    if (
+      deposit.details[i].messageSent &&
+      currentDeposit.details.amount == deposit.details[i].amount
+    ) {
+      return false;
+    }
+  }
+
+  deposit.details.push(currentDeposit.details);
+  return deposit;
 };
 
 exports.depositList = depositList;
