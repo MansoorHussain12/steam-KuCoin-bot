@@ -72,11 +72,21 @@ try {
     if (!result) console.log("recived undefined");
     else {
       let index = result.details.length - 1;
-
-      client.chat.sendFriendMessage(
-        result._id,
-        `***** \n Your transaction has been confirmed on blockchain. \n Details are \n Currency : ${result.details[index].currency} \n Amount : ${result.details[index].amount} \n inVoiceID : ${result.details[index].inVoiceId} \n WalletTxID : ${result.details[index].walletTxId} \n *****`
-      );
+      if (result.details[index].status == "SUCCESS")
+        client.chat.sendFriendMessage(
+          result._id,
+          `Your transaction of amount ${result.details[index].amount} ${result.details[index].currency} on ${result.details[index].chain} network has been confirmed. We have updated your balance. Kindly check it with !balance. Thanks! \n\n TxID : ${result.details[index].walletTxId}`
+        );
+      else if (result.details[index].status == "PROCESSING")
+        client.chat.sendFriendMessage(
+          result._id,
+          `We have detected your transaction of ${result.details[index].amount} ${result.details[index].currency} on ${result.details[index].chain} network. It may take minutes or hours to confirm it on blockchain. \nTxID :  ${result.details[index].walletTxId}.\n`
+        );
+      else
+        client.chat.sendFriendMessage(
+          result._id,
+          `Your transacton has failed of ${result.details[index].amount} ${result.details[index].currency} on ${result.details[index].chain} network. \nTxID :  ${result.details[index].walletTxId}.`
+        );
     }
   }, 3000);
 } catch (error) {
@@ -156,16 +166,17 @@ client.on("friendMessage", async function (steamID, message) {
           return;
         }
 
-        client.chat.sendFriendMessage(
-          steamID,
-          `You have ${
-            limit - 1
-          } number of transactions available after this for "${
-            details.crypto.name
-          }". Fetching you details please wait...`
-        );
+        // client.chat.sendFriendMessage(
+        //   steamID,
+        //   `You have ${
+        //     limit - 1
+        //   } number of transactions available after this for "${
+        //     details.crypto.name
+        //   }". Fetching you details please wait...`
+        // );
 
         details.crypto.balance = amount;
+        details.crypto.chain = depositAddress.chain;
 
         await saveTxRecord(details);
 
@@ -178,48 +189,9 @@ client.on("friendMessage", async function (steamID, message) {
         setTimeout(() => {
           client.chat.sendFriendMessage(
             steamID,
-            "Details : *** \n" +
-              "Currency : " +
-              details.crypto.name +
-              "\n" +
-              "Amount: " +
-              details.crypto.balance +
-              "\n" +
-              "Address : " +
-              depositAddress.address +
-              "\n" +
-              "Memo : " +
-              depositAddress.memo
-          );
-        }, 3000);
-
-        setTimeout(() => {
-          client.chat.sendFriendMessage(
-            steamID,
-            "Chain : " + depositAddress.chain + "\nTxID : " + txId + "\n ***"
+            `Transaction request has been recieved. Your inVoiceID is : ${txId}`
           );
         }, 3200);
-
-        setTimeout(() => {
-          client.chat.sendFriendMessage(
-            steamID,
-            `Please deposit the exact amount ${details.crypto.balance} , or you will have to confirm the transaction manually with us.`
-          );
-        }, 3500);
-
-        setTimeout(() => {
-          client.chat.sendFriendMessage(
-            steamID,
-            "To check your balance type '!balance'."
-          );
-        }, 5000);
-
-        setTimeout(() => {
-          client.chat.sendFriendMessage(
-            steamID,
-            `You transaction is being processed. You will be informed here once your transaction is confirmed on blockchain.`
-          );
-        }, 10000);
       } else {
         client.chat.sendFriendMessage(
           steamID,

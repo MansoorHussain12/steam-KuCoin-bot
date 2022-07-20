@@ -67,8 +67,6 @@ const depositList = async () => {
   let j = 0;
   let k = 0;
 
-  let check = false;
-
   while (i < allTransactions.length) {
     while (j < allTransactions[i].currencies.length) {
       details = {
@@ -83,12 +81,6 @@ const depositList = async () => {
     }
     i++;
   }
-
-  // let existsInDb = await checkDepositDb(allAmounts);
-
-  // console.log(existsInDb);
-
-  // if (existsInDb === true) return false;
 
   i = 0;
   j = 0;
@@ -120,12 +112,20 @@ const depositList = async () => {
           };
           try {
             let check = await checkDepositDb(deposit);
-            // console.log(check);
+
             if (check != false) {
               let index = check.details.length - 1;
               check.details[index].messageSent = true;
-              await check.save();
-              return check;
+              if (
+                check.details[index].status == "PROCESSING" ||
+                check.details[index].status == "FAILURE"
+              )
+                return check;
+              else {
+                await check.save();
+                await saveBalance(check);
+                return check;
+              }
             } else continue;
           } catch (error) {
             console.log(error);
@@ -197,6 +197,7 @@ const checkDepositDb = async (currentDeposit) => {
   }
 
   deposit.details.push(currentDeposit.details);
+
   return deposit;
 };
 

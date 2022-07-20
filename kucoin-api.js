@@ -1,7 +1,16 @@
 const API = require("kucoin-node-sdk");
 API.init(require("./config/kucoin-config"));
 
+const { supportedCryptos } = require("./config/cryptos");
+
 const validateCurrency = async (currency) => {
+  let check = false;
+  currency = currency.toUpperCase();
+  supportedCryptos.forEach((crypto) => {
+    if (crypto === currency) check = true;
+  });
+
+  if (check == false) return false;
   const currencyDetails = await API.rest.Market.Currencies.getCurrencyDetail(
     currency
   );

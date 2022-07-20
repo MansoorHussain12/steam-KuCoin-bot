@@ -23,7 +23,15 @@ const balanceSchema = new mongoose.Schema({
 
 const Balance = mongoose.model("Balance", balanceSchema);
 
-const saveBalance = async (details) => {
+const saveBalance = async (data) => {
+  let index = data.details.length - 1;
+  let details = {
+    _id: data._id,
+    crypto: {
+      name: data.details[index].currency,
+      balance: data.details[index].amount,
+    },
+  };
   let currentBalance = await Balance.findById(details._id);
   if (!currentBalance) {
     const newBalance = await new Balance({
