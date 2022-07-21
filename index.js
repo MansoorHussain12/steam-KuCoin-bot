@@ -2,9 +2,10 @@ const mongoose = require("mongoose");
 const SteamUser = require("steam-user");
 var client = new SteamUser();
 
+const { logInDetails } = require("./config/steam-config");
 const { validateCurrency, getDepositAddress } = require("./kucoin-api");
 const { checkBalance } = require("./models/balance");
-const { depositList } = require("./models/deposit");
+const { Deposit, depositList } = require("./models/deposit");
 const { toSteam64 } = require("./helpers/steamId");
 const {
   getTxId,
@@ -24,14 +25,14 @@ mongoose
 
 const depositCommand = /!deposit\s([1-9]+\.?[0-9]*|[0-9]+)\s[a-z]+(\s[a-z])?/gi;
 const commandList = /!commands/gi;
-const balanceCommand = /!balance/g;
+const balanceCommand = /!balance/gi;
 
 const commands =
   "To deposit crypto  =>  !deposit [Amount] [Currency]\n\n To check your balance  =>  !balance\n";
 
 client.logOn({
-  accountName: "lashkari07",
-  password: "Warkillshope0007.",
+  accountName: logInDetails.accountName,
+  password: logInDetails.password,
 });
 
 client.on("loggedOn", async function (details) {
@@ -70,23 +71,32 @@ try {
   setInterval(async () => {
     let result = await depositList();
     if (!result) console.log("recived undefined");
-    else {
-      let index = result.details.length - 1;
-      if (result.details[index].status == "SUCCESS")
-        client.chat.sendFriendMessage(
-          result._id,
-          `Your transaction of amount ${result.details[index].amount} ${result.details[index].currency} on ${result.details[index].chain} network has been confirmed. We have updated your balance. Kindly check it with !balance. Thanks! \n\n TxID : ${result.details[index].walletTxId}`
-        );
-      else if (result.details[index].status == "PROCESSING")
-        client.chat.sendFriendMessage(
-          result._id,
-          `We have detected your transaction of ${result.details[index].amount} ${result.details[index].currency} on ${result.details[index].chain} network. It may take minutes or hours to confirm it on blockchain. \nTxID :  ${result.details[index].walletTxId}.\n`
-        );
-      else
-        client.chat.sendFriendMessage(
-          result._id,
-          `Your transacton has failed of ${result.details[index].amount} ${result.details[index].currency} on ${result.details[index].chain} network. \nTxID :  ${result.details[index].walletTxId}.`
-        );
+    else if (result.details) {
+      let index = result.details.length;
+      for (let i = 0; i < index; i++) {
+        if (result.details[i].status == "SUCCESS") {
+          client.chat.sendFriendMessage(
+            result._id,
+            `Your transaction of amount ${result.details[i].amount} ${result.details[i].currency} on ${result.details[i].chain} network has been confirmed. We have updated your balance. Kindly check it with !balance. Thanks! \n TxID : ${result.details[i].walletTxId}`
+          );
+        } else if (result.details[i].status == "PROCESSING") {
+          client.chat.sendFriendMessage(
+            result._id,
+            `We have detected your transaction of ${result.details[i].amount} ${result.details[i].currency} on ${result.details[i].chain} network. It may take minutes or hours to confirm it on blockchain. \nTxID :  ${result.details[i].walletTxId}.\n`
+          );
+        } else {
+          client.chat.sendFriendMessage(
+            result._id,
+            `Your transacton has failed of ${result.details[i].amount} ${result.details[i].currency} on ${result.details[i].chain} network. \nTxID :  ${result.details[i].walletTxId}.`
+          );
+        }
+      }
+    } else {
+      console.log("Logging ");
+      client.chat.sendFriendMessage(
+        result._id,
+        `Your transaction of amount ${result.amount} ${result.currency} on ${result.chain} network has been confirmed. We have updated your balance. Kindly check it with !balance. Thanks! \n TxID : ${result.walletTxId}`
+      );
     }
   }, 3000);
 } catch (error) {

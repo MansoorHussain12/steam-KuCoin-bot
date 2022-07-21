@@ -5,18 +5,6 @@ API.init(require("../config/kucoin-config"));
 const { TransactionRecord } = require("./transactionRecord");
 const { saveBalance } = require("./balance");
 
-let result = {
-  _id: "",
-  status: false,
-  crypto: {
-    name: "",
-    balance: 0,
-    inVoiceId: mongoose.Types.ObjectId,
-    chain: "",
-    walletTxId: "",
-  },
-};
-
 const depositSchema = new mongoose.Schema({
   _id: String,
   details: [
@@ -34,7 +22,7 @@ const depositSchema = new mongoose.Schema({
         remark: String,
         createdAt: Number,
         updatedAt: Number,
-        messageSent: Boolean,
+        messageSent: Number,
       },
       { _id: false }
     ),
@@ -107,24 +95,22 @@ const depositList = async () => {
               remark: list[k].remark,
               createdAt: list[k].createdAt,
               updatedAt: list[k].updatedAt,
-              messageSent: false,
+              messageSent: 0,
             },
           };
           try {
-            let check = await checkDepositDb(deposit);
+            let checkDb = await checkDepositDb(deposit);
 
-            if (check != false) {
-              let index = check.details.length - 1;
-              check.details[index].messageSent = true;
-              if (
-                check.details[index].status == "PROCESSING" ||
-                check.details[index].status == "FAILURE"
-              )
-                return check;
+            if (checkDb != false) {
+              if (checkDb.status == "Updated") return checkDb;
               else {
-                await check.save();
-                await saveBalance(check);
-                return check;
+                let index = checkDb.details.length - 1;
+                if (checkDb.details[index].status == "SUCCESS")
+                  await saveBalance(checkDb);
+
+                checkDb.details[index].messageSent = 1;
+                await checkDb.save();
+                return checkDb;
               }
             } else continue;
           } catch (error) {
@@ -138,6 +124,7 @@ const depositList = async () => {
 
 const checkDepositDb = async (currentDeposit) => {
   const deposits = await Deposit.find();
+  // currentDeposit.details.status = "FAILURE";
 
   if (deposits.length === 0) {
     let newDeposit = new Deposit({
@@ -155,7 +142,7 @@ const checkDepositDb = async (currentDeposit) => {
         remark: currentDeposit.details.remark,
         createdAt: currentDeposit.details.createdAt,
         updatedAt: currentDeposit.details.updatedAt,
-        messageSent: false,
+        messageSent: 0,
       },
     });
     console.log("No deposits found at all");
@@ -180,16 +167,38 @@ const checkDepositDb = async (currentDeposit) => {
         remark: currentDeposit.details.remark,
         createdAt: currentDeposit.details.createdAt,
         updatedAt: currentDeposit.details.updatedAt,
-        messageSent: false,
+        messageSent: 0,
       },
     });
     console.log("Found deposit but not with the given Id");
     return newDeposit;
   }
 
+  // Write some checkStatus code here... {}
+
   for (let i = 0; i < deposit.details.length; i++) {
     if (
-      deposit.details[i].messageSent &&
+      currentDeposit.details.amount == deposit.details[i].amount &&
+      deposit.details[i].status == "PROCESSING" &&
+      currentDeposit.details.status == "SUCCESS"
+    ) {
+      deposit.details[i].status = "SUCCESS";
+      await deposit.save();
+      await saveBalance(deposit);
+      return {
+        _id: deposit._id,
+        walletTxId: deposit.details[i].walletTxId,
+        currency: deposit.details[i].currency,
+        amount: deposit.details[i].amount,
+        chain: deposit.details[i].chain,
+        status: "Updated",
+      };
+    }
+  }
+
+  for (let i = 0; i < deposit.details.length; i++) {
+    if (
+      deposit.details[i].messageSent == 1 &&
       currentDeposit.details.amount == deposit.details[i].amount
     ) {
       return false;
@@ -199,6 +208,22 @@ const checkDepositDb = async (currentDeposit) => {
   deposit.details.push(currentDeposit.details);
 
   return deposit;
+};
+
+const checkStatus = async (currentDeposit) => {
+  let obj = {
+    index: 0,
+    deposit: {},
+  };
+  let deposits = await Deposit.find();
+
+  if (!deposits) return false;
+
+  let deposit = deposits.find((deposit) => (deposit._id = currentDeposit._id));
+
+  if (!deposit) return false;
+
+  return false;
 };
 
 exports.depositList = depositList;
