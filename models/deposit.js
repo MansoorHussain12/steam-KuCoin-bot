@@ -102,7 +102,11 @@ const depositList = async () => {
             let checkDb = await checkDepositDb(deposit);
 
             if (checkDb != false) {
-              if (checkDb.status == "Updated") return checkDb;
+              if (
+                checkDb.status == "UpdatedSuccess" ||
+                checkDb.status == "UpdatedFailure"
+              )
+                return checkDb;
               else {
                 let index = checkDb.details.length - 1;
                 if (checkDb.details[index].status == "SUCCESS")
@@ -191,7 +195,22 @@ const checkDepositDb = async (currentDeposit) => {
         currency: deposit.details[i].currency,
         amount: deposit.details[i].amount,
         chain: deposit.details[i].chain,
-        status: "Updated",
+        status: "UpdatedSuccess",
+      };
+    } else if (
+      currentDeposit.details.amount == deposit.details[i].amount &&
+      deposit.details[i].status == "PROCESSING" &&
+      currentDeposit.details.status == "FAILURE"
+    ) {
+      deposit.details[i].status = "FAILURE";
+      await deposit.save();
+      return {
+        _id: deposit._id,
+        walletTxId: deposit.details[i].walletTxId,
+        currency: deposit.details[i].currency,
+        amount: deposit.details[i].amount,
+        chain: deposit.details[i].chain,
+        status: "UpdatedFailure",
       };
     }
   }

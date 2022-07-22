@@ -13,9 +13,9 @@ module.exports = {
   /**   secret is API secret */
   /**   passphrase as API passphrase */
   apiAuth: {
-    key: "62be5a1b913d5500017ebaed",
-    secret: "4aa4491e-285f-4bb5-a3a1-752939c7e9fb",
-    passphrase: "Warkillshope0007.",
+    key: "",
+    secret: "",
+    passphrase: "",
   },
   authVersion: 2,
 };

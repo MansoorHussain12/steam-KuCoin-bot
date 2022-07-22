@@ -5,7 +5,7 @@ var client = new SteamUser();
 const { logInDetails } = require("./config/steam-config");
 const { validateCurrency, getDepositAddress } = require("./kucoin-api");
 const { checkBalance } = require("./models/balance");
-const { Deposit, depositList } = require("./models/deposit");
+const { depositList } = require("./models/deposit");
 const { toSteam64 } = require("./helpers/steamId");
 const {
   getTxId,
@@ -92,11 +92,16 @@ try {
         }
       }
     } else {
-      console.log("Logging ");
-      client.chat.sendFriendMessage(
-        result._id,
-        `Your transaction of amount ${result.amount} ${result.currency} on ${result.chain} network has been confirmed. We have updated your balance. Kindly check it with !balance. Thanks! \n TxID : ${result.walletTxId}`
-      );
+      if (result.status == "UpdatedSuccess")
+        client.chat.sendFriendMessage(
+          result._id,
+          `Your transaction of amount ${result.amount} ${result.currency} on ${result.chain} network has been confirmed. We have updated your balance. Kindly check it with !balance. Thanks! \n TxID : ${result.walletTxId}`
+        );
+      else
+        client.chat.sendFriendMessage(
+          result._id,
+          `Your transacton has failed of ${result.amount} ${result.currency} on ${result.chain} network. \nTxID :  ${result.walletTxId}.`
+        );
     }
   }, 3000);
 } catch (error) {
