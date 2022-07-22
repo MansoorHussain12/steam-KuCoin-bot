@@ -2,11 +2,7 @@
 
 This is basically a steam bot connected with Kucoin API. 
 
-What this bot does...
-
 This bot serves like a crypto-currency bank. Users can deposit crypto-currency into the bot's account by giving commands through steam chat.
-
-Working...
 
 It accepts any friend request made on steam. 
 Friends can give a number of commands to the bot. For example :
