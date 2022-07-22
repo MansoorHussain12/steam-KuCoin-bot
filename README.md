@@ -24,3 +24,9 @@ In each type, the bot responds with the confirmation message.
 
 For each user a separate account is created. The balance of the account is updated with respect to the successful transactions.
 
+HOW TO RUN THIS BOT
+
+1. In the config folder, fill your steam account and kucoin API configuration details.
+2. Do "npm i" in the root folder of the project.
+3. Install MongoDB with MongoDB compass.
+4. Run the project by 'node index.js'
