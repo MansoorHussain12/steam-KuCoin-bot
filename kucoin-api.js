@@ -23,7 +23,6 @@ const getDepositAddress = async (details) => {
   );
 
   let list = addresses.data;
-  console.log(addresses);
 
   let completeAddress = {
     address: "",
