@@ -24,37 +24,51 @@ const balanceSchema = new mongoose.Schema({
 const Balance = mongoose.model("Balance", balanceSchema);
 
 const saveBalance = async (data) => {
-  let index = data.details.length - 1;
-  let details = {
-    _id: data._id,
-    crypto: {
-      name: data.details[index].currency,
-      balance: data.details[index].amount,
-    },
-  };
-  let currentBalance = await Balance.findById(details._id);
+  let balanceList = await Balance.find();
+  let currentBalance = balanceList.find((balance) => balance._id == data._id);
+
   if (!currentBalance) {
     const newBalance = await new Balance({
-      _id: details._id,
-      cryptos: details.crypto,
+      _id: data._id,
+    });
+    newBalance.cryptos.push({
+      name: data.details[0].currency,
+      balance: data.details[0].amount,
     });
 
-    await newBalance.save();
-  } else {
-    if (currentBalance.cryptos.find((c) => c.name === details.crypto.name)) {
-      currentBalance.cryptos.find(
-        (c) => c.name === details.crypto.name
-      ).balance += details.crypto.balance;
-
-      await currentBalance.save();
-    } else {
-      const newCrypto = {
-        name: details.crypto.name,
-        balance: details.crypto.balance,
-      };
-      currentBalance.cryptos.push(newCrypto);
-      await currentBalance.save();
+    for (let i = 0; i < data.details.length; i++) {
+      if (data.details[i].messageSent != 1) {
+        if (newBalance.cryptos[0].name == data.details[i].currency) {
+          if (newBalance.cryptos[0].balance != data.details[i].amount)
+            newBalance.cryptos[0].balance += data.details[i].amount;
+        } else
+          newBalance.cryptos.push({
+            name: data.details[i].currency,
+            balance: data.details[i].amount,
+          });
+      }
     }
+
+    await newBalance.save();
+
+    return;
+  } else {
+    for (let i = 0; i < currentBalance.cryptos.length; i++) {
+      for (let j = 0; j < data.details.length; j++) {
+        if (data.details[j].messageSent != 1) {
+          if (currentBalance.cryptos[i].name == data.details[j].currency)
+            currentBalance.cryptos[i].balance += data.details[j].amount;
+          else
+            currentBalance.cryptos.push({
+              name: data.details[j].currency,
+              balance: data.details[j].amount,
+            });
+        }
+      }
+    }
+    await currentBalance.save();
+
+    return;
   }
 };
 
@@ -70,6 +84,3 @@ const checkBalance = async (_id) => {
 
 exports.saveBalance = saveBalance;
 exports.checkBalance = checkBalance;
-// currentBalance.cryptos.find(
-//   (c) => (c.name = details.crypto.name)
-// ).balance

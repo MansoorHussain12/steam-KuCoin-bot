@@ -14,7 +14,10 @@
     "kucoin-node-sdk": "^1.0.4",
     "mongoose": "^6.4.4",
     "nodemon": "^2.0.18",
+    "steam-totp": "^2.1.2",
     "steam-user": "^4.24.3",
-    "steamid": "^2.0.0"
+    "steamcommunity": "^3.44.1",
+    "steamid": "^2.0.0",
+    "steamstore": "^2.2.1"
   }
 }

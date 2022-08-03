@@ -1,5 +1,3 @@
-const SteamID = require("steamid");
-
 const toSteam64 = (id) => {
   const steam64 = id.getSteamID64();
   return steam64;

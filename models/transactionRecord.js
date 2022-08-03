@@ -132,19 +132,11 @@ const checkTransactionLimit = async (details) => {
 const getTxId = async (_id, name, amount) => {
   const record = await TransactionRecord.findById(_id);
 
-  let i = 0;
-  let j = 0;
-
-  while (i < record.currencies.length) {
-    while (j < record.currencies[i].balance.length) {
-      if (record.currencies[i].name == name) {
-        if (record.currencies[i].balance[j].amount == amount) {
-          return record.currencies[i].balance[j]._id.toString();
-        }
-      }
-      j++;
+  for (let i = 0; i < record.currencies.length; i++) {
+    for (let j = 0; j < record.currencies[i].balance.length; j++) {
+      if (record.currencies[i].balance[j].amount == amount)
+        return record.currencies[i].balance[j]._id.toString();
     }
-    i++;
   }
 };
 

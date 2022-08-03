@@ -19,10 +19,11 @@ const validateCurrency = async (currency) => {
 
 const getDepositAddress = async (details) => {
   let addresses = await API.rest.User.Deposit.getDepositAddressV2(
-    details.crypto.name
+    details.crypto.name.toUpperCase()
   );
 
   let list = addresses.data;
+  console.log(addresses);
 
   let completeAddress = {
     address: "",
@@ -50,11 +51,5 @@ const getDepositAddress = async (details) => {
   return false;
 };
 
-const getDepositList = async (details) => {
-  const depositList = await API.rest.User.Deposit.getDepositList(details);
-  return depositList;
-};
-
 exports.validateCurrency = validateCurrency;
 exports.getDepositAddress = getDepositAddress;
-exports.getDepositList = getDepositList;

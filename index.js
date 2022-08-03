@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const SteamUser = require("steam-user");
+let SteamTotp = require("steam-totp");
 var client = new SteamUser();
 
 const { logInDetails } = require("./config/steam-config");
@@ -7,6 +8,7 @@ const { validateCurrency, getDepositAddress } = require("./kucoin-api");
 const { checkBalance } = require("./models/balance");
 const { depositList } = require("./models/deposit");
 const { toSteam64 } = require("./helpers/steamId");
+const { sendNotification } = require("./helpers/sendNotification");
 const {
   getTxId,
   saveTxRecord,
@@ -30,9 +32,12 @@ const balanceCommand = /!balance/gi;
 const commands =
   "To deposit crypto  =>  !deposit [Amount] [Currency]\n\n To check your balance  =>  !balance\n";
 
+let twoFactorCode = SteamTotp.getAuthCode(logInDetails.shared_secret);
+
 client.logOn({
   accountName: logInDetails.accountName,
   password: logInDetails.password,
+  twoFactorCode: twoFactorCode,
 });
 
 client.on("loggedOn", async function (details) {
@@ -70,40 +75,11 @@ client.on("friendRelationship", function (steamID, relationship) {
 try {
   setInterval(async () => {
     let result = await depositList();
-    if (!result) console.log("recived undefined");
+    if (!result) console.log("No New Deposits.");
     else if (result.details) {
-      let index = result.details.length;
-      for (let i = 0; i < index; i++) {
-        if (result.details[i].status == "SUCCESS") {
-          client.chat.sendFriendMessage(
-            result._id,
-            `Your transaction of amount ${result.details[i].amount} ${result.details[i].currency} on ${result.details[i].chain} network has been confirmed. We have updated your balance. Kindly check it with !balance. Thanks! \n TxID : ${result.details[i].walletTxId}`
-          );
-        } else if (result.details[i].status == "PROCESSING") {
-          client.chat.sendFriendMessage(
-            result._id,
-            `We have detected your transaction of ${result.details[i].amount} ${result.details[i].currency} on ${result.details[i].chain} network. It may take minutes or hours to confirm it on blockchain. \nTxID :  ${result.details[i].walletTxId}.\n`
-          );
-        } else {
-          client.chat.sendFriendMessage(
-            result._id,
-            `Your transacton has failed of ${result.details[i].amount} ${result.details[i].currency} on ${result.details[i].chain} network. \nTxID :  ${result.details[i].walletTxId}.`
-          );
-        }
-      }
-    } else {
-      if (result.status == "UpdatedSuccess")
-        client.chat.sendFriendMessage(
-          result._id,
-          `Your transaction of amount ${result.amount} ${result.currency} on ${result.chain} network has been confirmed. We have updated your balance. Kindly check it with !balance. Thanks! \n TxID : ${result.walletTxId}`
-        );
-      else
-        client.chat.sendFriendMessage(
-          result._id,
-          `Your transacton has failed of ${result.amount} ${result.currency} on ${result.chain} network. \nTxID :  ${result.walletTxId}.`
-        );
+      await sendNotification(client, result);
     }
-  }, 3000);
+  }, 5000);
 } catch (error) {
   console.log(error);
 }
@@ -201,12 +177,28 @@ client.on("friendMessage", async function (steamID, message) {
           details.crypto.balance
         );
 
-        setTimeout(() => {
-          client.chat.sendFriendMessage(
-            steamID,
-            `Transaction request has been recieved. Your inVoiceID is : ${txId}`
-          );
-        }, 3200);
+        if (depositAddress.memo.length == 0)
+          setTimeout(() => {
+            client.chat.sendFriendMessage(
+              steamID,
+              `Deposit request has been received. Your inVoice : ${txId}
+              \nPlease send exactly ${details.crypto.balance} ${details.crypto.name} on\n
+              Network : ${details.crypto.chain} network\n
+              Address : ${depositAddress.address}\n
+              `
+            );
+          }, 2200);
+        else
+          setTimeout(() => {
+            client.chat.sendFriendMessage(
+              steamID,
+              `Deposit request has been received. Your inVoice : ${txId}
+              \nPlease send exactly ${details.crypto.balance} ${details.crypto.name} on\n
+              Network : ${details.crypto.chain} network\n
+              Address : ${depositAddress.address}\n
+              Memo : ${depositAddress.memo}`
+            );
+          }, 3200);
       } else {
         client.chat.sendFriendMessage(
           steamID,

@@ -3,7 +3,6 @@ const API = require("kucoin-node-sdk");
 API.init(require("../config/kucoin-config"));
 
 const { TransactionRecord } = require("./transactionRecord");
-const { saveBalance } = require("./balance");
 
 const depositSchema = new mongoose.Schema({
   _id: String,
@@ -51,12 +50,8 @@ const depositList = async () => {
     },
   };
 
-  let i = 0;
-  let j = 0;
-  let k = 0;
-
-  while (i < allTransactions.length) {
-    while (j < allTransactions[i].currencies.length) {
+  for (let i = 0; i < allTransactions.length; i++) {
+    for (let j = 0; j < allTransactions[i].currencies.length; j++) {
       details = {
         _id: allTransactions[i]._id,
         crypto: {
@@ -65,21 +60,13 @@ const depositList = async () => {
         },
       };
       allAmounts.push(details);
-      j++;
     }
-    i++;
   }
 
-  i = 0;
-  j = 0;
-  k = 0;
-
-  for (k = 0; k < list.length; k++) {
-    for (i = 0; i < allAmounts.length; i++) {
-      for (j = 0; j < allAmounts[i].crypto.balance.length; j++) {
+  for (let k = 0; k < list.length; k++) {
+    for (let i = 0; i < allAmounts.length; i++) {
+      for (let j = 0; j < allAmounts[i].crypto.balance.length; j++) {
         if (list[k].amount == allAmounts[i].crypto.balance[j].amount) {
-          // console.log(list[k].amount);
-
           let deposit = {
             _id: allAmounts[i]._id,
             details: {
@@ -101,22 +88,8 @@ const depositList = async () => {
           try {
             let checkDb = await checkDepositDb(deposit);
 
-            if (checkDb != false) {
-              if (
-                checkDb.status == "UpdatedSuccess" ||
-                checkDb.status == "UpdatedFailure"
-              )
-                return checkDb;
-              else {
-                let index = checkDb.details.length - 1;
-                if (checkDb.details[index].status == "SUCCESS")
-                  await saveBalance(checkDb);
-
-                checkDb.details[index].messageSent = 1;
-                await checkDb.save();
-                return checkDb;
-              }
-            } else continue;
+            if (checkDb != false) return checkDb;
+            else continue;
           } catch (error) {
             console.log(error);
           }
@@ -128,7 +101,7 @@ const depositList = async () => {
 
 const checkDepositDb = async (currentDeposit) => {
   const deposits = await Deposit.find();
-  // currentDeposit.details.status = "FAILURE";
+  // currentDeposit.details.status = "PROCESSING";
 
   if (deposits.length === 0) {
     let newDeposit = new Deposit({
@@ -178,50 +151,13 @@ const checkDepositDb = async (currentDeposit) => {
     return newDeposit;
   }
 
-  // Write some checkStatus code here... {}
+  let update = await checkUpdates(currentDeposit, deposit);
+
+  if (update) return update;
 
   for (let i = 0; i < deposit.details.length; i++) {
-    if (
-      currentDeposit.details.amount == deposit.details[i].amount &&
-      deposit.details[i].status == "PROCESSING" &&
-      currentDeposit.details.status == "SUCCESS"
-    ) {
-      deposit.details[i].status = "SUCCESS";
-      await deposit.save();
-      await saveBalance(deposit);
-      return {
-        _id: deposit._id,
-        walletTxId: deposit.details[i].walletTxId,
-        currency: deposit.details[i].currency,
-        amount: deposit.details[i].amount,
-        chain: deposit.details[i].chain,
-        status: "UpdatedSuccess",
-      };
-    } else if (
-      currentDeposit.details.amount == deposit.details[i].amount &&
-      deposit.details[i].status == "PROCESSING" &&
-      currentDeposit.details.status == "FAILURE"
-    ) {
-      deposit.details[i].status = "FAILURE";
-      await deposit.save();
-      return {
-        _id: deposit._id,
-        walletTxId: deposit.details[i].walletTxId,
-        currency: deposit.details[i].currency,
-        amount: deposit.details[i].amount,
-        chain: deposit.details[i].chain,
-        status: "UpdatedFailure",
-      };
-    }
-  }
-
-  for (let i = 0; i < deposit.details.length; i++) {
-    if (
-      deposit.details[i].messageSent == 1 &&
-      currentDeposit.details.amount == deposit.details[i].amount
-    ) {
+    if (deposit.details[i].amount == currentDeposit.details.amount)
       return false;
-    }
   }
 
   deposit.details.push(currentDeposit.details);
@@ -229,20 +165,26 @@ const checkDepositDb = async (currentDeposit) => {
   return deposit;
 };
 
-const checkStatus = async (currentDeposit) => {
-  let obj = {
-    index: 0,
-    deposit: {},
-  };
-  let deposits = await Deposit.find();
-
-  if (!deposits) return false;
-
-  let deposit = deposits.find((deposit) => (deposit._id = currentDeposit._id));
-
-  if (!deposit) return false;
-
-  return false;
+const checkUpdates = async (currentDeposit, deposit) => {
+  for (let i = 0; i < deposit.details.length; i++) {
+    if (
+      currentDeposit.details.amount == deposit.details[i].amount &&
+      deposit.details[i].status == "PROCESSING" &&
+      currentDeposit.details.status == "SUCCESS"
+    ) {
+      deposit.details[i].status = "SUCCESS";
+      deposit.details[i].messageSent = 0;
+      return deposit;
+    } else if (
+      currentDeposit.details.amount == deposit.details[i].amount &&
+      deposit.details[i].status == "PROCESSING" &&
+      currentDeposit.details.status == "FAILURE"
+    ) {
+      deposit.details[i].status = "FAILURE";
+      deposit.details[i].messageSent = 0;
+      return deposit;
+    }
+  }
 };
 
 exports.depositList = depositList;
